@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>관리자 - 유선 자문단 건의함</title>
+    <style>
+      body { margin: 0; font-family: "Malgun Gothic", "Segoe UI", sans-serif; background: #f4f7fb; color: #111827; }
+      .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+      .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+      h1 { margin: 0 0 12px; font-size: 24px; }
+      label { display: block; margin: 12px 0 6px; font-weight: 700; }
+      input[type=password] { width: 100%; max-width: 380px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+      .actions { display: flex; gap: 8px; margin-top: 12px; }
+      button, .btn { border: 1px solid #2563eb; background: #2563eb; color: #fff; padding: 9px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; font-size: 14px; }
+      .secondary { border-color: #cbd5e1; background: #fff; color: #111827; }
+      .msg { margin-top: 10px; min-height: 20px; font-weight: 700; }
+      .ok { color: #15803d; }
+      .err { color: #b91c1c; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+      th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; font-size: 13px; }
+      th { background: #f8fafc; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card" id="loginCard">
+        <div class="topbar">
+          <h1>관리자 로그인</h1>
+          <a class="btn secondary" href="./index.html">사용자 화면</a>
+        </div>
+        <label for="password">비밀번호</label>
+        <input id="password" type="password" placeholder="비밀번호 입력" />
+        <div class="actions">
+          <button id="loginBtn" type="button">로그인</button>
+        </div>
+        <div id="msg" class="msg"></div>
+      </div>
+
+      <div class="card" id="adminCard" style="display:none;">
+        <div class="topbar">
+          <h1>관리자 페이지</h1>
+          <div class="actions">
+            <button id="exportBtn" type="button">엑셀 추출(CSV)</button>
+            <button id="logoutBtn" type="button" class="secondary">로그아웃</button>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width:70px;">번호</th>
+              <th style="width:160px;">등록일시</th>
+              <th style="width:220px;">제목 유형</th>
+              <th>내용</th>
+              <th>비교 내용</th>
+              <th style="width:200px;">관련 영역</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      function setMsg(text, ok) {
+        const msg = document.getElementById("msg");
+        msg.textContent = text || "";
+        msg.className = "msg " + (ok ? "ok" : "err");
+      }
+
+      function esc(value) {
+        const div = document.createElement("div");
+        div.textContent = value ?? "";
+        return div.innerHTML;
+      }
+
+      async function renderRows() {
+        const res = await fetch("/api/admin/list");
+        if (!res.ok) throw new Error("권한 없음");
+        const rows = await res.json();
+        const tbody = document.getElementById("rows");
+        tbody.innerHTML = rows.map((r, idx) => `
+          <tr>
+            <td>${esc(idx + 1)}</td>
+            <td>${esc(r.createdAt)}</td>
+            <td>${esc(r.category)}</td>
+            <td>${esc(r.content)}</td>
+            <td>${esc(r.compareContent)}</td>
+            <td>${esc((r.areas || []).join(", "))}</td>
+          </tr>
+        `).join("");
+      }
+
+      function showAdmin() {
+        document.getElementById("loginCard").style.display = "none";
+        document.getElementById("adminCard").style.display = "block";
+        renderRows().catch(() => {
+          setMsg("목록 조회에 실패했습니다.", false);
+        });
+      }
+
+      document.getElementById("loginBtn").addEventListener("click", async () => {
+        const input = document.getElementById("password").value;
+        try {
+          const res = await fetch("/api/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: input }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setMsg(data.message || "로그인 실패", false);
+            return;
+          }
+          setMsg("", true);
+          showAdmin();
+        } catch (_e) {
+          setMsg("서버 연결에 실패했습니다.", false);
+        }
+      });
+
+      document.getElementById("logoutBtn").addEventListener("click", async () => {
+        await fetch("/api/admin/logout", { method: "POST" });
+        window.location.reload();
+      });
+
+      document.getElementById("exportBtn").addEventListener("click", () => {
+        window.location.href = "/api/admin/export";
+      });
+
+      fetch("/api/admin/list").then((res) => {
+        if (res.ok) showAdmin();
+      });
+    </script>
+  </body>
+</html>

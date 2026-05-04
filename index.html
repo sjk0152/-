@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>유선 자문단 익명 건의함</title>
+    <style>
+      body { margin: 0; font-family: "Malgun Gothic", "Segoe UI", sans-serif; background: #f4f7fb; color: #111827; }
+      .container { max-width: 820px; margin: 0 auto; padding: 20px; }
+      .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+      .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+      h1 { margin: 0 0 12px; font-size: 24px; }
+      label { display: block; margin: 12px 0 6px; font-weight: 700; }
+      select, textarea { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font: inherit; background: #fff; }
+      select { min-height: 40px; }
+      textarea { min-height: 90px; resize: vertical; }
+      .checks { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+      .checks label { margin: 0; font-weight: 500; }
+      .actions { display: flex; gap: 8px; margin-top: 14px; }
+      button, .btn { border: 1px solid #2563eb; background: #2563eb; color: #fff; padding: 9px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; font-size: 14px; }
+      .secondary { border-color: #cbd5e1; background: #fff; color: #111827; }
+      .msg { margin-top: 10px; min-height: 20px; font-weight: 700; }
+      .ok { color: #15803d; }
+      .err { color: #b91c1c; }
+      .muted { font-size: 12px; color: #64748b; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="topbar">
+          <h1>유선 자문단 익명 건의함</h1>
+          <a class="btn secondary" href="./admin.html">관리자</a>
+        </div>
+
+        <label for="category">제목 *</label>
+        <select id="category">
+          <option value="">제목 유형 선택</option>
+          <option value="자문단 활동 관련 건의사항">1. 자문단 활동 관련 건의사항</option>
+          <option value="운영 관련 좋은 의견">2. 운영 관련 좋은 의견</option>
+          <option value="기타">3. 기타</option>
+        </select>
+
+        <label for="content">내용 *</label>
+        <textarea id="content"></textarea>
+
+        <label for="compareContent">비교 내용 *</label>
+        <textarea id="compareContent"></textarea>
+
+        <label>관련 영역 (복수 선택)</label>
+        <div class="checks">
+          <label><input type="checkbox" name="area" value="인터넷" /> 인터넷</label>
+          <label><input type="checkbox" name="area" value="IPTV·미디어" /> IPTV·미디어</label>
+          <label><input type="checkbox" name="area" value="전화" /> 전화</label>
+          <label><input type="checkbox" name="area" value="결합·알뜰" /> 결합·알뜰</label>
+          <label><input type="checkbox" name="area" value="B2B·기업" /> B2B·기업</label>
+          <label><input type="checkbox" name="area" value="기타" /> 기타</label>
+        </div>
+
+        <div class="actions">
+          <button type="button" id="submitBtn">건의 등록</button>
+          <button type="button" id="resetBtn" class="secondary">초기화</button>
+        </div>
+        <div id="msg" class="msg"></div>
+        <div class="muted">배포 후 URL로 접속하면 모두 같은 데이터로 저장됩니다.</div>
+      </div>
+    </div>
+
+    <script>
+      function setMsg(text, ok) {
+        const msg = document.getElementById("msg");
+        msg.textContent = text || "";
+        msg.className = "msg " + (ok ? "ok" : "err");
+      }
+
+      function getAreas() {
+        return Array.from(document.querySelectorAll('input[name="area"]:checked')).map((el) => el.value);
+      }
+
+      function resetForm() {
+        document.getElementById("category").value = "";
+        document.getElementById("content").value = "";
+        document.getElementById("compareContent").value = "";
+        document.querySelectorAll('input[name="area"]').forEach((el) => (el.checked = false));
+      }
+
+      document.getElementById("resetBtn").addEventListener("click", () => {
+        resetForm();
+        setMsg("", true);
+      });
+
+      document.getElementById("submitBtn").addEventListener("click", async () => {
+        const payload = {
+          category: document.getElementById("category").value.trim(),
+          content: document.getElementById("content").value.trim(),
+          compareContent: document.getElementById("compareContent").value.trim(),
+          areas: getAreas(),
+        };
+
+        if (!payload.category || !payload.content || !payload.compareContent) {
+          setMsg("제목, 내용, 비교 내용은 필수입니다.", false);
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/suggestions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setMsg(data.message || "등록 실패", false);
+            return;
+          }
+          resetForm();
+          setMsg("익명 건의가 등록되었습니다.", true);
+        } catch (_e) {
+          setMsg("서버 연결에 실패했습니다.", false);
+        }
+      });
+    </script>
+  </body>
+</html>
